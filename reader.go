@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
@@ -38,6 +39,13 @@ func Cons(car Value, cdr Value) *Cell {
         Car: car,
         Cdr: cdr,
     }
+}
+
+func List(elements... Value) Value {
+    if (len(elements) == 0) {
+        return NilValue()
+    }
+    return Cons(elements[0], List(elements[1:]...))
 }
 
 type String string
@@ -92,17 +100,17 @@ func (r *Reader) Read() (Value, error) {
     }
     switch t.tag {
     case token_EOF:
-        return nil, io.EOF
+        return nil, nil
     case token_LP:
         return readList(r)
     case token_QUOTE:
-        return readQuote(r, "quote")
+        return readQuote(r, "QUOTE")
     case token_BACKQUOTE:
-        return readQuote(r, "quasiquote")
+        return readQuote(r, "QUASIQUOTE")
     case token_COMMA:
-        return readQuote(r, "unquote")
+        return readQuote(r, "UNQUOTE")
     case token_COMMAAT:
-        return readQuote(r, "unquotesplicing")
+        return readQuote(r, "UNQUOTESPLICING")
     case token_STRING:
         return NewString(t.value), nil
     case token_ATOM:
@@ -166,7 +174,7 @@ func parseAtom(t token) (Value, error) {
     if err == nil {
         return IntegerValue(i64), nil
     }
-    if err != strconv.ErrSyntax {
+    if !isStrconvSyntaxError(err) {
         return nil, err
     }
 
@@ -174,11 +182,19 @@ func parseAtom(t token) (Value, error) {
     if err == nil {
         return FloatValue(f64), nil
     }
-    if err != strconv.ErrSyntax {
+    if !isStrconvSyntaxError(err) {
         return nil, err
     }
 
-    return Intern(t.value), nil
+    return Intern(strings.ToUpper(t.value)), nil
+}
+
+func isStrconvSyntaxError(err error) bool {
+    ne, ok := err.(*strconv.NumError)
+    if !ok {
+        return false
+    }
+    return ne.Err == strconv.ErrSyntax
 }
 
 func (r *Reader) nextToken() (token, error) {
