@@ -344,7 +344,7 @@ func scanString(r *Reader) {
         }
         switch c {
         case '\\':
-            scanEscapeSequence(r, buf)
+            buf = scanEscapeSequence(r, buf)
         case '"':
             r.emitToken(token_STRING, string(buf))
             return
@@ -363,20 +363,18 @@ var escMap = map[rune]rune {
     'f': '\f',
     'r': '\r',
     '"': '"',
-    '\'': '\'',
     '\\': '\\',
 }
 
-func scanEscapeSequence(r *Reader, buf []rune) {
+func scanEscapeSequence(r *Reader, buf []rune) []rune {
     c, ok := r.readRune()
     if !ok {
-        return
+        return buf
     }
     if x, ok := escMap[c]; ok {
-        buf = append(buf, x)
-        return
+        return append(buf, x)
     }
-    buf = append(buf, c)
+    return append(buf, c)
 }
 
 func scanAtom(r *Reader, fc rune) {
